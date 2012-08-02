@@ -89,8 +89,8 @@ straight h = case (isDescending ranks) of False -> Nothing
 
 fullHouse :: Hand -> Maybe HandInfo
 fullHouse h = do
-    threeK <- (kind h 3)
-    twoK   <- (kind h 2)
+    threeK <- kind h 3
+    twoK   <- kind h 2
     return (6, [highest, secondHighest])
   where ranks         = getRanks h
         highest       = maximum ranks
@@ -105,12 +105,20 @@ twoPair h = case hiLo of Nothing        -> Nothing
                                             True  -> Just (head x, head y)
         allLengthTwo = all (\x -> length x == 2)
 
-kind :: Hand -> Int -> (Maybe Integer)
-kind h n = case (numKind == n) of False -> Nothing
-                                  True  -> Just $ head highest
-  where ranks = L.group $ getRanks h
-        highest = head ranks
-        numKind = length highest
+kind :: Hand -> Integer -> (Maybe Integer)
+kind h n = case matches of Nothing    -> Nothing
+                           Just (x:_) -> Just x
+  where kinds    = L.sort $ onlyGroups $ getRanks h
+        matches  = L.find ((==) (fromIntegral n) . length) kinds
+
+
+
+-- Group the list of Integers and return only those which have multiples.
+-- Example: [1, 2, 2, 3, 3] yields [[2, 2,], [3, 3]] as opposed to 
+-- [[1], [2, 2], [3, 3]].
+onlyGroups :: [Integer] -> [[Integer]]
+onlyGroups = filter f . L.group . L.sort
+    where f = \x -> length x > 1
 
 fourKind :: Hand -> Maybe HandInfo
 fourKind h = case (kind h 4) of Nothing -> Nothing

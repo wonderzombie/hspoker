@@ -58,12 +58,20 @@ sortHand :: Hand -> Hand
 sortHand h = L.sortBy cardOrdering h
   where cardOrdering (_,r1) (_,r2) = compare r1 r2
 
+--straightFlush :: Hand -> Maybe HandInfo
+--straightFlush h = do
+--    si <- straight h
+--    fi <- flush h
+--    return (8, [highCard])
+--  where highCard = head $ getRanks h 
+
 straightFlush :: Hand -> Maybe HandInfo
-straightFlush h = do
-    si <- straight h
-    fi <- flush h
-    return (8, [highCard])
-  where highCard = head $ getRanks h 
+straightFlush h = case (isStraight, isFlush) of 
+        (Just x, Just y) -> Just (8, [highCard])
+        (_, _)           -> Nothing
+    where isFlush    = flush h
+          isStraight = straight h
+          highCard   = head $ getRanks h
 
 
 flush :: Hand -> Maybe HandInfo
@@ -121,9 +129,10 @@ highCard h = Just (0, ranks)
     where ranks = getRanks h
 
 isDescending :: [Integer] -> Bool
-isDescending []       = True
-isDescending (_:[])   = True
-isDescending (x:y:xs) = x == (succ y) && isDescending xs
+isDescending xs = xs == expected
+    where mx       = maximum xs
+          mn       = minimum xs
+          expected = reverse $ [mn..mx]
 
 getRanks :: Hand -> [Integer]
 getRanks = reverse . L.sort . map snd

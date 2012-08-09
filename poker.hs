@@ -1,6 +1,7 @@
 
 module Poker where
 
+import Data.Char
 import qualified Data.List as L
 
 data Suit = Clubs | Diamonds | Hearts | Spades
@@ -40,12 +41,17 @@ showRank 14 = "A"
 showRank r  = show r
 
 getRank :: Char -> Maybe Integer
-getRank 'T' = Just 10
-getRank 'J' = Just 11
-getRank 'Q' = Just 12
-getRank 'K' = Just 13
-getRank 'A' = Just 14
-getRank r   = Just $ read (r:"") :: Maybe Integer -- hacky.
+getRank x
+    | isDigit x  = let v = read [x]
+                   in if v > 1 then Just v else Nothing
+    | isLetter x = lookup x ranks
+    | otherwise  = Nothing
+    where ranks = [ ('T', 10)
+                  , ('J', 11)
+                  , ('Q', 12)
+                  , ('K', 13)
+                  , ('A', 14)
+                  ]
 
 getSuit :: Char -> Maybe Suit
 getSuit 'C' = Just Clubs
@@ -58,21 +64,11 @@ sortHand :: Hand -> Hand
 sortHand h = L.sortBy cardOrdering h
   where cardOrdering (_,r1) (_,r2) = compare r1 r2
 
---straightFlush :: Hand -> Maybe HandInfo
---straightFlush h = do
---    si <- straight h
---    fi <- flush h
---    return (8, [highCard])
---  where highCard = head $ getRanks h 
+--- Hands.
 
 straightFlush :: Hand -> Maybe HandInfo
-straightFlush h = case (isStraight, isFlush) of 
-        (Just x, Just y) -> Just (8, [highCard])
-        (_, _)           -> Nothing
-    where isFlush    = flush h
-          isStraight = straight h
-          highCard   = head $ getRanks h
-
+straightFlush h = flush h >> straight h >> return (8, [highCard])
+    where highCard = head $ getRanks h
 
 flush :: Hand -> Maybe HandInfo
 flush h = case uniform of False -> Nothing
@@ -88,10 +84,7 @@ straight h = case (isDescending ranks) of False -> Nothing
         highCard = head ranks
 
 fullHouse :: Hand -> Maybe HandInfo
-fullHouse h = do
-    threeK <- kind h 3
-    twoK   <- kind h 2
-    return (6, [highest, secondHighest])
+fullHouse h = kind h 3 >> kind h 2 >> return (6, [highest, secondHighest])
   where ranks         = getRanks h
         highest       = maximum ranks
         secondHighest = minimum ranks
@@ -111,15 +104,6 @@ kind h n = case matches of Nothing    -> Nothing
   where kinds    = L.sort $ onlyGroups $ getRanks h
         matches  = L.find ((==) (fromIntegral n) . length) kinds
 
-
-
--- Group the list of Integers and return only those which have multiples.
--- Example: [1, 2, 2, 3, 3] yields [[2, 2,], [3, 3]] as opposed to 
--- [[1], [2, 2], [3, 3]].
-onlyGroups :: [Integer] -> [[Integer]]
-onlyGroups = filter f . L.group . L.sort
-    where f = \x -> length x > 1
-
 fourKind :: Hand -> Maybe HandInfo
 fourKind h = case (kind h 4) of Nothing -> Nothing
                                 Just x  -> Just (7, [x])
@@ -135,6 +119,15 @@ twoKind h = case (kind h 2) of Nothing -> Nothing
 highCard :: Hand -> Maybe HandInfo
 highCard h = Just (0, ranks)
     where ranks = getRanks h
+
+--- Utility methods.
+
+-- Group the list of Integers and return only those which have multiples.
+-- Example: [1, 2, 2, 3, 3] yields [[2, 2,], [3, 3]] as opposed to 
+-- [[1], [2, 2], [3, 3]].
+onlyGroups :: [Integer] -> [[Integer]]
+onlyGroups = filter f . L.group . L.sort
+    where f = \x -> length x > 1
 
 isDescending :: [Integer] -> Bool
 isDescending xs = xs == expected

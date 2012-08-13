@@ -12,17 +12,25 @@ type Hand = [Card]
 
 type HandInfo = (Integer, [Integer])
 
-getHandRank :: [(Hand -> Maybe HandInfo)]
-getHandRank = [ straightFlush
-              , fourKind
-              , fullHouse
-              , flush
-              , straight
-              , threeKind
-              , twoPair
-              , twoKind
-              , highCard
-              ]
+hands :: [(Hand -> Maybe HandInfo)]
+hands = [ straightFlush -- 8
+        , fourKind
+        , fullHouse
+        , flush
+        , straight -- 4
+        , threeKind
+        , twoPair
+        , twoKind
+        , highCard -- 0
+        ]
+
+getHandRank :: Hand -> Maybe HandInfo
+getHandRank h = highestRank hands h
+
+highestRank :: [(Hand -> Maybe HandInfo)] -> Hand -> Maybe HandInfo
+highestRank [] _ = Nothing
+highestRank (r:rs) h = case (r h) of Nothing     -> highestRank rs h
+                                     Just x      -> Just x
 
 ranks :: [Integer]
 ranks = [2..14] -- up to 10, and then J, Q, K, A.

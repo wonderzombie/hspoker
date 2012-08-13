@@ -4,6 +4,9 @@ import qualified Poker as P
 import Test.HUnit
 import Text.Printf
 
+-----
+-- Utility methods.
+
 testIsDescending = TestCase $
   let b = P.isDescending [3, 2, 1] in
   assertBool "Expected this to be descending." b
@@ -25,7 +28,47 @@ testOnlyGroups = TestCase $
     assertEqual ("List only has two duplicated sets: " ++ show x) 2 (length x')
     assertEqual ("Processed list should have two items: " ++ show x') 2 (length y)
 
+-----
+-- Parse cards
+
+parseCardCases :: [(String, Maybe P.Card)]
+parseCardCases = [ ("TD", Just (P.Diamonds, 10))
+                 , ("AS", Just (P.Spades, 14))
+                 , ("9H", Just (P.Hearts, 9))
+                 , ("2C", Just (P.Clubs, 2))
+                 , ("XC", Nothing)
+                 , ("2F", Nothing)
+                 ]
+
+makeParseCardTest :: (String, Maybe P.Card) -> Test
+makeParseCardTest (string, result) = string ~: result ~=? P.parseCard string
+
+testParseCard :: Test
+testParseCard = TestList $ map makeParseCardTest parseCardCases
+
+-----
+-- Hand ranks
+
+rankCases :: [([String], Integer)]
+rankCases = [ (["6C", "7C", "8C", "9C", "TC"], 8) -- straight flush
+            , (["3C", "3H", "3D", "TH", "TS"], 6) -- full house
+            , (["7C", "4C", "8C", "9C", "TC"], 5) -- flush
+            , (["AD", "TD", "9C", "5C", "4C"], 0) -- high card
+            ]
+
+makeRankTest :: ([String], Integer) -> Test
+makeRankTest (cards, wantRank) = show hand ~: wantRank ~=? actualRank
+    where hand = P.parseCards cards
+          rank = (hand >>= P.getHandRank)
+          actualRank = case rank of Nothing     -> (-1)
+                                    Just (r,_)  -> r
+
+testGetHandRank :: Test
+testGetHandRank = TestList $ map makeRankTest rankCases
+
+-----
 -- Hand types.
+
 testStraightFlush = TestCase $ 
   let sf        = P.parseCards ["6C", "7C", "8C", "9C", "TC"]
       sfInfo    = sf    >>= P.straightFlush
@@ -78,25 +121,13 @@ testTwoKind = TestCase $
   in do
     assertBool ("Expected two of a kind: " ++ show tk) (tkInfo /= Nothing)
 
-makeTest :: (String, Maybe P.Card) -> Test
-makeTest (string, result) = string ~: result ~=? P.parseCard string
-
-parseCardCases :: [(String, Maybe P.Card)]
-parseCardCases = [ ("TD", Just (P.Diamonds, 10))
-                 , ("AS", Just (P.Spades, 14))
-                 , ("9H", Just (P.Hearts, 9))
-                 , ("2C", Just (P.Clubs, 2))
-                 , ("XC", Nothing)
-                 , ("2F", Nothing)
-                 ]
-
-testParseCard :: Test
-testParseCard = TestList $ map makeTest parseCardCases
 
 tests = TestList [ TestLabel "testIsDescending"           testIsDescending
                  , TestLabel "testIsDescending_Dupes"     testIsDescending_Dupes
                  , TestLabel "testIsDescending_Ascending" testIsDescending_Ascending
                  , TestLabel "testOnlyGroups"             testOnlyGroups
+                 -- 
+                 , TestLabel "testGetHandRank"            testGetHandRank
                  -- Hand types
                  , TestLabel "testStraightFlush"          testStraightFlush
                  , TestLabel "testFullHouse"              testFullHouse

@@ -2,7 +2,7 @@
 
 ### todo
 
-*   fix straights wrt aces high OR low. homework uses a lookup, mapping cards to rank via an array (read: string). `A` appears twice, though— what about the case where `A` needs to be high? e.g. `T, J, Q, K, A`.
+*   <strike>fix straights wrt aces high OR low. homework uses a lookup, mapping cards to rank via an array (read: string). `A` appears twice, though— what about the case where `A` needs to be high? e.g. `T, J, Q, K, A`.</strike> -- done.
 
 *   organize Poker.hs. functions are all jumbled.
 *   possibly break out a separate PokerUtil.hs.

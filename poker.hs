@@ -26,11 +26,9 @@ hands = [ straightFlush -- 8
 
 getHandRank :: Hand -> Maybe HandInfo
 getHandRank h = highestRank hands h
-
-highestRank :: [(Hand -> Maybe HandInfo)] -> Hand -> Maybe HandInfo
-highestRank [] _ = Nothing
-highestRank (r:rs) h = case (r h) of Nothing     -> highestRank rs h
-                                     Just x      -> Just x
+    where highestRank [] _     = Nothing
+          highestRank (r:rs) h = case (r h) of Nothing -> highestRank rs h
+                                               Just x  -> Just x
 
 ranks :: [Integer]
 ranks = [2..14] -- up to 10, and then J, Q, K, A.
@@ -50,8 +48,8 @@ showRank r  = show r
 
 getRank :: Char -> Maybe Integer
 getRank x
-    | isDigit x  = let v = read [x]
-                   in if v > 1 then Just v else Nothing
+    | isDigit x  = let v = read [x] in 
+                   if v > 1 then Just v else Nothing
     | isLetter x = lookup x ranks
     | otherwise  = Nothing
     where ranks = [ ('T', 10)
@@ -79,8 +77,8 @@ straightFlush h = flush h >> straight h >> return (8, [highCard])
     where highCard = head $ getRanks h
 
 flush :: Hand -> Maybe HandInfo
-flush h = case uniform of False -> Nothing
-                          True  -> Just (5, [maximum $ getRanks h])
+flush h = if uniform then Just (5, [maximum $ getRanks h])
+          else Nothing
   where suits   = getSuits h
         first   = head suits
         uniform = all (\x -> x == first) suits
@@ -89,7 +87,9 @@ straight :: Hand -> Maybe HandInfo
 straight h = case (isDescending ranks) of False -> Nothing
                                           True  -> Just (4, [highCard])
   where ranks    = getRanks h
-        highCard = head ranks
+        highCard = head $ getRanks h
+
+
 
 fullHouse :: Hand -> Maybe HandInfo
 fullHouse h = kind h 3 >> kind h 2 >> return (6, [highest, secondHighest])
@@ -130,6 +130,10 @@ highCard h = Just (0, ranks)
 
 --- Utility methods.
 
+-- Sort in descending order.
+desc :: Ord a => [a] -> [a]
+desc = reverse . L.sort
+
 -- Group the list of Integers and return only those which have multiples.
 -- Example: [1, 2, 2, 3, 3] yields [[2, 2,], [3, 3]] as opposed to 
 -- [[1], [2, 2], [3, 3]].
@@ -141,10 +145,13 @@ isDescending :: [Integer] -> Bool
 isDescending xs = xs == expected
     where mx       = maximum xs
           mn       = minimum xs
-          expected = reverse $ [mn..mx]
+          expected = desc [mn..mx]
 
 getRanks :: Hand -> [Integer]
-getRanks = reverse . L.sort . map snd
+getRanks h = ranks'
+    where ranks  = desc $ map snd h
+          ranks' = if head ranks == 14 && (isDescending $ tail ranks)
+                   then reverse [1..5] else ranks
 
 getSuits :: Hand -> [Suit]
 getSuits = map fst

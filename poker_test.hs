@@ -1,8 +1,11 @@
 module Poker_Test where
 
-import qualified Poker as P
+import Control.Applicative
 import Test.HUnit
 import Text.Printf
+
+import qualified Data.List as L
+import qualified Poker as P
 
 -----
 -- Utility methods.
@@ -47,6 +50,21 @@ testParseCard :: Test
 testParseCard = TestList $ map makeParseCardTest parseCardCases
 
 -----
+-- Card ranks
+
+cardRankCases :: [([String], [Integer])]
+cardRankCases = [ (["6C", "7C", "8C", "9C", "TC"], [6, 7, 8, 9, 10])
+                , (["AC", "2C", "3D", "4H", "5S"], [1, 2, 3, 4, 5])
+                ]
+
+makeCardRankTest :: ([String], [Integer]) -> Test
+makeCardRankTest (s, r) = show s ~: Just (reverse $ L.sort r) ~=? gotRanks
+    where gotRanks  = P.getRanks <$> P.parseCards s
+
+testGetRanks :: Test
+testGetRanks = TestList $ map makeCardRankTest cardRankCases
+
+-----
 -- Hand ranks
 
 rankCases :: [([String], Integer)]
@@ -57,11 +75,9 @@ rankCases = [ (["6C", "7C", "8C", "9C", "TC"], 8) -- straight flush
             ]
 
 makeRankTest :: ([String], Integer) -> Test
-makeRankTest (cards, wantRank) = show hand ~: wantRank ~=? actualRank
+makeRankTest (cards, wantRank) = show hand ~: Just wantRank ~=? gotRank
     where hand = P.parseCards cards
-          rank = (hand >>= P.getHandRank)
-          actualRank = case rank of Nothing     -> (-1)
-                                    Just (r,_)  -> r
+          gotRank = fst <$> (hand >>= P.getHandRank)
 
 testGetHandRank :: Test
 testGetHandRank = TestList $ map makeRankTest rankCases
@@ -127,6 +143,7 @@ tests = TestList [ TestLabel "testIsDescending"           testIsDescending
                  , TestLabel "testIsDescending_Ascending" testIsDescending_Ascending
                  , TestLabel "testOnlyGroups"             testOnlyGroups
                  -- 
+                 , TestLabel "testGetRanks"               testGetRanks
                  , TestLabel "testGetHandRank"            testGetHandRank
                  -- Hand types
                  , TestLabel "testStraightFlush"          testStraightFlush

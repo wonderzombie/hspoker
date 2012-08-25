@@ -1,7 +1,12 @@
 
 module Poker where
 
+import Control.Monad.State
 import Data.Char
+import Data.Random.Extras
+import Data.Random.Source.DevRandom
+import Data.RVar
+
 import qualified Data.List as L
 
 data Suit = Clubs | Diamonds | Hearts | Spades
@@ -12,23 +17,39 @@ type Hand = [Card]
 
 type HandInfo = (Integer, [Integer])
 
-hands :: [(Hand -> Maybe HandInfo)]
-hands = [ straightFlush -- 8
-        , fourKind
-        , fullHouse
-        , flush
-        , straight -- 4
-        , threeKind
-        , twoPair
-        , twoKind
-        , highCard -- 0
-        ]
+type DealerState = State [Card] [[Card]]
 
-getHandRank :: Hand -> Maybe HandInfo
-getHandRank h = highestRank hands h
-    where highestRank [] _     = Nothing
-          highestRank (r:rs) h = case (r h) of Nothing -> highestRank rs h
-                                               Just x  -> Just x
+-- |Cards.
+
+{--
+
+Usage notes to self:
+
+- Build a minimal state up with dealHands:
+    dealHands 3 7 []
+
+This is a state waiting for, er, state.
+
+- Call runState on it, passing in a deck aka [Card]
+
+    runState (dealHands 3 7 []) deck
+
+- Enjoy.
+
+--}
+
+deck :: [Card]
+deck = [ (s, r) | s <- suits, r <- ranks ] 
+
+shuffleDeck :: Int -> RVar [Card]
+shuffleDeck n = shuffle $ concat $ replicate n deck
+
+deal :: Int -> ([[Card]] -> DealerState)
+deal n = \xs -> state $ \s -> (xs ++ [take n s], drop n s)
+
+-- |Deal a number of hands a number of cards each.
+dealHands :: Int -> Int -> ([[Card]] -> DealerState)
+dealHands hs cs = foldr1 (<=<) $ replicate hs (deal cs)
 
 ranks :: [Integer]
 ranks = [2..14] -- up to 10, and then J, Q, K, A.
@@ -48,16 +69,16 @@ showRank r  = show r
 
 getRank :: Char -> Maybe Integer
 getRank x
-    | isDigit x  = let v = read [x] in 
-                   if v > 1 then Just v else Nothing
-    | isLetter x = lookup x ranks
-    | otherwise  = Nothing
-    where ranks = [ ('T', 10)
-                  , ('J', 11)
-                  , ('Q', 12)
-                  , ('K', 13)
-                  , ('A', 14)
-                  ]
+  | isDigit x  = let v = read [x] in 
+                 if v > 1 then Just v else Nothing
+  | isLetter x = lookup x ranks
+  | otherwise  = Nothing
+  where ranks = [ ('T', 10)
+                , ('J', 11)
+                , ('Q', 12)
+                , ('K', 13)
+                , ('A', 14)
+                ]
 
 getSuit :: Char -> Maybe Suit
 getSuit 'C' = Just Clubs
@@ -66,15 +87,35 @@ getSuit 'H' = Just Hearts
 getSuit 'S' = Just Spades
 getSuit _   = Nothing
 
+
+-- |Poker hands.
+
+hands :: [(Hand -> Maybe HandInfo)]
+hands = [ straightFlush -- 8
+        , fourKind
+        , fullHouse
+        , flush
+        , straight -- 4
+        , threeKind
+        , twoPair
+        , twoKind
+        , highCard -- 0
+        ]
+
+getHandRank :: Hand -> Maybe HandInfo
+getHandRank h = highestRank hands h
+  where highestRank [] _     = Nothing
+        highestRank (r:rs) h = case (r h) of Nothing -> highestRank rs h
+                                             Just x  -> Just x
+
+-- |Sorts a hand by the ranks of each card.
 sortHand :: Hand -> Hand
 sortHand h = L.sortBy cardOrdering h
   where cardOrdering (_,r1) (_,r2) = compare r1 r2
 
---- Hands.
-
 straightFlush :: Hand -> Maybe HandInfo
 straightFlush h = flush h >> straight h >> return (8, [highCard])
-    where highCard = head $ getRanks h
+  where highCard = head $ getRanks h
 
 flush :: Hand -> Maybe HandInfo
 flush h = if uniform then Just (5, [maximum $ getRanks h])
@@ -88,8 +129,6 @@ straight h = case (isDescending ranks) of False -> Nothing
                                           True  -> Just (4, [highCard])
   where ranks    = getRanks h
         highCard = head $ getRanks h
-
-
 
 fullHouse :: Hand -> Maybe HandInfo
 fullHouse h = kind h 3 >> kind h 2 >> return (6, [highest, secondHighest])
@@ -126,32 +165,32 @@ twoKind h = case (kind h 2) of Nothing -> Nothing
 
 highCard :: Hand -> Maybe HandInfo
 highCard h = Just (0, ranks)
-    where ranks = getRanks h
+  where ranks = getRanks h
 
---- Utility methods.
+-- |Utility methods.
 
--- Sort in descending order.
+-- |Sort in descending order.
 desc :: Ord a => [a] -> [a]
 desc = reverse . L.sort
 
--- Group the list of Integers and return only those which have multiples.
--- Example: [1, 2, 2, 3, 3] yields [[2, 2,], [3, 3]] as opposed to 
--- [[1], [2, 2], [3, 3]].
+-- |Group the list of Integers and return only those which have multiples.
+--  Example: [1, 2, 2, 3, 3] yields [[2, 2,], [3, 3]] as opposed to 
+--  [[1], [2, 2], [3, 3]].
 onlyGroups :: [Integer] -> [[Integer]]
-onlyGroups = filter f . L.group . L.sort
-    where f = \x -> length x > 1
+onlyGroups = filter multi . L.group . L.sort
+  where multi x = length x > 1
 
 isDescending :: [Integer] -> Bool
 isDescending xs = xs == expected
-    where mx       = maximum xs
-          mn       = minimum xs
-          expected = desc [mn..mx]
+  where mx       = maximum xs
+        mn       = minimum xs
+        expected = desc [mn..mx]
 
 getRanks :: Hand -> [Integer]
 getRanks h = ranks'
-    where ranks  = desc $ map snd h
-          ranks' = if head ranks == 14 && (isDescending $ tail ranks)
-                   then reverse [1..5] else ranks
+  where ranks  = desc $ map snd h
+        ranks' = if head ranks == 14 && (isDescending $ tail ranks)
+                 then reverse [1..5] else ranks
 
 getSuits :: Hand -> [Suit]
 getSuits = map fst
@@ -163,4 +202,4 @@ parseCard (r:s:"") = do
     return (suit, rank)
 
 parseCards :: [String] -> Maybe Hand
-parseCards cs = mapM parseCard cs
+parseCards = mapM parseCard

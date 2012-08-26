@@ -1,11 +1,11 @@
 
 module Poker where
 
-import Control.Monad.State
+import Control.Arrow
+import Control.Monad
+import Control.Monad.Random.Class
 import Data.Char
-import Data.Random.Extras
-import Data.Random.Source.DevRandom
-import Data.RVar
+import System.Random.Shuffle
 
 import qualified Data.List as L
 
@@ -14,48 +14,28 @@ data Suit = Clubs | Diamonds | Hearts | Spades
 
 type Card = (Suit, Integer)
 type Hand = [Card]
+type Deck = [Card]
 
 type HandInfo = (Integer, [Integer])
 
-type DealerState = State [Card] [[Card]]
+-- |Dealing.
+
+dealHands :: Int -> Int -> Deck -> ([Hand], Deck)
+dealHands m n = (map (take n) *** head) . splitAt m . iterate (drop n)
+
+shuffleAndDeal :: (Functor m, MonadRandom m) => Int -> Int -> Deck -> m ([Hand], Deck)
+shuffleAndDeal m n xs = dealHands m n `fmap` shuffleM xs
 
 -- |Cards.
-
-{--
-
-Usage notes to self:
-
-- Build a minimal state up with dealHands:
-    dealHands 3 7 []
-
-This is a state waiting for, er, state.
-
-- Call runState on it, passing in a deck aka [Card]
-
-    runState (dealHands 3 7 []) deck
-
-- Enjoy.
-
---}
-
-deck :: [Card]
-deck = [ (s, r) | s <- suits, r <- ranks ] 
-
-shuffleDeck :: Int -> RVar [Card]
-shuffleDeck n = shuffle $ concat $ replicate n deck
-
-deal :: Int -> ([[Card]] -> DealerState)
-deal n = \xs -> state $ \s -> (xs ++ [take n s], drop n s)
-
--- |Deal a number of hands a number of cards each.
-dealHands :: Int -> Int -> ([[Card]] -> DealerState)
-dealHands hs cs = foldr1 (<=<) $ replicate hs (deal cs)
 
 ranks :: [Integer]
 ranks = [2..14] -- up to 10, and then J, Q, K, A.
 
 suits :: [Suit]
 suits = [Clubs, Diamonds, Hearts, Spades]
+
+getDeck :: Deck
+getDeck = [ (s, r) | s <- suits, r <- ranks ] 
 
 showCard :: Card -> String
 showCard (s,r) = show s ++ showRank r

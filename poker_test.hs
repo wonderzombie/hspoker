@@ -7,7 +7,7 @@ import Text.Printf
 import qualified Data.List as L
 import qualified Poker as P
 
--- | Utility methods.
+-- |Utility methods.
 
 testIsDescending = TestCase $
   let b = P.isDescending [3, 2, 1] in
@@ -30,7 +30,7 @@ testOnlyGroups = TestCase $
     assertEqual ("List only has two duplicated sets: " ++ show x) 2 (length x')
     assertEqual ("Processed list should have two items: " ++ show x') 2 (length y)
 
--- | Parse cards
+-- |Parse cards
 
 parseCardCases :: [(String, Maybe P.Card)]
 parseCardCases = [ ("TD", Just (P.Diamonds, 10))
@@ -47,7 +47,7 @@ makeParseCardTest (string, result) = string ~: result ~=? P.parseCard string
 testParseCard :: Test
 testParseCard = TestList $ map makeParseCardTest parseCardCases
 
--- | Card ranks
+-- |Card ranks
 
 cardRankCases :: [([String], [Integer])]
 cardRankCases = [ (["6C", "7C", "8C", "9C", "TC"], [6, 7, 8, 9, 10])
@@ -61,7 +61,7 @@ makeCardRankTest (s, r) = show s ~: Just (reverse $ L.sort r) ~=? gotRanks
 testGetRanks :: Test
 testGetRanks = TestList $ map makeCardRankTest cardRankCases
 
--- | Hand ranks
+-- |Hand ranks
 rankCases :: [([String], Integer)]
 rankCases = [ (["6C", "7C", "8C", "9C", "TC"], 8) -- straight flush
             , (["3C", "3H", "3D", "TH", "TS"], 6) -- full house
@@ -77,7 +77,7 @@ makeRankTest (cards, wantRank) = show hand ~: Just wantRank ~=? gotRank
 testGetHandRank :: Test
 testGetHandRank = TestList $ map makeRankTest rankCases
 
--- | Hand types.
+-- |Hand types.
 
 testStraightFlush = TestCase $ 
   let sf        = P.parseCards ["6C", "7C", "8C", "9C", "TC"]
